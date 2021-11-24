@@ -16,6 +16,8 @@
  */
 package org.wildfly.galleon.maven;
 
+import static org.wildfly.galleon.maven.AbstractFeaturePackBuildMojo.appendMavenGAV;
+
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.FileInputStream;
@@ -27,12 +29,18 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
+
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+
 import org.apache.commons.codec.binary.Hex;
 import org.apache.maven.model.Model;
 import org.apache.maven.model.Parent;
@@ -55,11 +63,13 @@ public class ArtifactListBuilder {
 
     private final Path localMvnRepoPath;
     private final Map<String, String> map = new TreeMap<>();
+    private final Collection<ArtifactCoords> artifacts = new TreeSet<>();
     private final MessageDigest md;
 
     private final MavenArtifactRepositoryManager artifactResolver;
 
     private final Log log;
+
     /**
      * Create an Artifact list builder.
      *
@@ -117,6 +127,7 @@ public class ArtifactListBuilder {
         }
         addArtifact(artifactLocalPath);
         addArtifact(pomFile);
+        artifacts.add(coords);
         return artifactLocalPath;
     }
 
@@ -156,6 +167,16 @@ public class ArtifactListBuilder {
         }
 
         return builder.toString();
+    }
+
+    // Append each artifact as a stream with a fixed version.
+    protected void appendJarArtifactsAsStreams(StringBuilder out) {
+        List<ArtifactCoords> jars = artifacts.stream().filter(coords -> "jar".equals(coords.getExtension())).collect(Collectors.toList());
+        for (ArtifactCoords artifact : jars) {
+            appendMavenGAV(out, "  ", artifact.getGroupId(),
+                    artifact.getArtifactId(),
+                    artifact.getVersion());
+        }
     }
 
     protected Map<String, String> getMap() {
