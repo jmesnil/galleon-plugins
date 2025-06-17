@@ -61,8 +61,8 @@
         versions, add the artifactId or other qualifier to the property name.
         For example: <version.org.jboss.as.console>
     -->
-    <maven.compiler.target>11</maven.compiler.target>
-    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.source>17</maven.compiler.source>
     <version.junit>4.13.1</version.junit>
     <version.adoc-maven-plugin-descriptor>1.0.0.Alpha3</version.adoc-maven-plugin-descriptor>
     <version.plugin.plugin>3.6.4</version.plugin.plugin>

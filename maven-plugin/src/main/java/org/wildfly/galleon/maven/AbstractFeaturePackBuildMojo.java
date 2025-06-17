@@ -16,19 +16,18 @@
  */
 package org.wildfly.galleon.maven;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import static java.lang.String.format;
 import static org.wildfly.galleon.maven.FeatureSpecGeneratorInvoker.MODULE_PATH_SEGMENT;
 import static org.wildfly.galleon.maven.Util.mkdirs;
 
+import javax.xml.stream.XMLStreamException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.Reader;
+import java.net.URISyntaxException;
+import java.net.URL;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitOption;
 import java.nio.file.FileVisitResult;
@@ -53,12 +52,14 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.TreeSet;
 
-import javax.xml.stream.XMLStreamException;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import nu.xom.ParsingException;
 import org.apache.maven.artifact.DefaultArtifact;
 import org.apache.maven.artifact.handler.DefaultArtifactHandler;
@@ -552,6 +553,10 @@ public abstract class AbstractFeaturePackBuildMojo extends AbstractMojo {
                                         Files.copy(model, modelTarget);
                                         debug("Attaching feature-pack model %s as a project artifact", modelTarget);
                                         projectHelper.attachArtifact(project, MODEL_EXTENSION, MODEL_CLASSIFIER, modelTarget.toFile());
+
+                                        // let's generate doc for this file
+                                        generateAndAttachDoc(model, project.getBuild().getDirectory(), artifactId, project.getVersion());
+
                                     }
                                 } catch (Exception ex) {
                                     throw new RuntimeException(ex);
@@ -581,6 +586,29 @@ public abstract class AbstractFeaturePackBuildMojo extends AbstractMojo {
         } catch (IOException e) {
             throw new MojoExecutionException("Failed to create a feature-pack archives from the layout", e);
         }
+    }
+
+    private void generateAndAttachDoc(Path model, String directory, String artifactId, String version) throws ClassNotFoundException, URISyntaxException, IOException, InterruptedException {
+        Class<?> wildflydoc = Class.forName("org.wildfly.wildscribe.wildflydoc.WildFlyDoc");
+        URL location = wildflydoc.getProtectionDomain().getCodeSource().getLocation();
+        List<String> command = new ArrayList<>();
+        command.add("java");
+        command.add("-jar");
+        command.add(new File(location.toURI()).getAbsolutePath());
+        command.add("-o");
+        command.add(project.getBuild().getDirectory());
+        command.add("-m");
+        command.add(model.toFile().getAbsolutePath());
+        command.add("-f");
+        command.add(artifactId + "-" + version);
+
+        ProcessBuilder pb = new ProcessBuilder(command);
+        pb.inheritIO();
+        Process process = pb.start();
+        int exitCode = process.waitFor();
+        final Path docZipArchive = Paths.get(project.getBuild().getDirectory()).resolve(artifactId + '-'
+                + version + "-doc.zip");
+        projectHelper.attachArtifact(project, "zip", "doc", docZipArchive.toFile());
     }
 
     private void generateMetadata(Path featurePack, FeaturePackDescription desc, Path metadataTarget) throws Exception {

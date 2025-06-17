@@ -162,6 +162,12 @@
       <groupId>org.wildfly.channel</groupId>
       <artifactId>channel-core</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.wildfly.wildscribe</groupId>
+      <artifactId>wildflydoc</artifactId>
+      <classifier>runner</classifier>
+      <version>1.0.0-SNAPSHOT</version>
+    </dependency>
   </dependencies>
 
   <build>
