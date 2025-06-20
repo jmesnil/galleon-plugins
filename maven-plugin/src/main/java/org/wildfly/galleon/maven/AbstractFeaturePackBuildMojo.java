@@ -541,21 +541,12 @@ public abstract class AbstractFeaturePackBuildMojo extends AbstractMojo {
                                     checkFeaturePackContentStability(buildTimestabilityLevel, forbidLowerStatibilityLevelPackageReference, lowerStabilityPackages,
                                             desc.getPackages(), desc.getLayers(), desc.getFeatures(), desc.getConfigs(), getLog());
                                     ZipUtils.zip(versionDir, target);
-                                    final Path metadataTarget = Paths.get(project.getBuild().getDirectory()).resolve(artifactId + '-'
-                                            + versionDir.getFileName() + "-" + METADATA_CLASSIFIER + "." + METADATA_EXTENSION);
-                                    generateMetadata(target, desc, metadataTarget);
-                                    debug("Attaching feature-pack metadata %s as a project artifact", metadataTarget);
-                                    projectHelper.attachArtifact(project, METADATA_EXTENSION, METADATA_CLASSIFIER, metadataTarget.toFile());
+                                    final Path metadata = Paths.get(project.getBuild().getDirectory()).resolve("metadata.json");
+                                    generateMetadata(target, desc, metadata);
                                     Path model = Paths.get(project.getBuild().getDirectory()).resolve("model.json");
                                     if (Files.exists(model)) {
-                                        final Path modelTarget = Paths.get(project.getBuild().getDirectory()).resolve(artifactId + '-'
-                                            + versionDir.getFileName() + "-" + MODEL_CLASSIFIER + "." + MODEL_EXTENSION);
-                                        Files.copy(model, modelTarget);
-                                        debug("Attaching feature-pack model %s as a project artifact", modelTarget);
-                                        projectHelper.attachArtifact(project, MODEL_EXTENSION, MODEL_CLASSIFIER, modelTarget.toFile());
-
                                         // let's generate doc for this file
-                                        generateAndAttachDoc(model, project.getBuild().getDirectory(), artifactId, project.getVersion());
+                                        generateAndAttachDoc(model, metadata);
 
                                     }
                                 } catch (Exception ex) {
@@ -588,7 +579,7 @@ public abstract class AbstractFeaturePackBuildMojo extends AbstractMojo {
         }
     }
 
-    private void generateAndAttachDoc(Path model, String directory, String artifactId, String version) throws ClassNotFoundException, URISyntaxException, IOException, InterruptedException {
+    private void generateAndAttachDoc(Path model, Path metadata) throws ClassNotFoundException, URISyntaxException, IOException, InterruptedException {
         Class<?> wildflydoc = Class.forName("org.wildfly.wildscribe.wildflydoc.WildFlyDoc");
         URL location = wildflydoc.getProtectionDomain().getCodeSource().getLocation();
         List<String> command = new ArrayList<>();
@@ -597,17 +588,16 @@ public abstract class AbstractFeaturePackBuildMojo extends AbstractMojo {
         command.add(new File(location.toURI()).getAbsolutePath());
         command.add("-o");
         command.add(project.getBuild().getDirectory());
-        command.add("-m");
+        command.add("-mo");
         command.add(model.toFile().getAbsolutePath());
-        command.add("-f");
-        command.add(artifactId + "-" + version);
-
+        command.add("-md");
+        command.add(metadata.toFile().getAbsolutePath());
         ProcessBuilder pb = new ProcessBuilder(command);
         pb.inheritIO();
         Process process = pb.start();
         int exitCode = process.waitFor();
-        final Path docZipArchive = Paths.get(project.getBuild().getDirectory()).resolve(artifactId + '-'
-                + version + "-doc.zip");
+        final Path docZipArchive = Paths.get(project.getBuild().getDirectory()).resolve(project.getArtifactId() + '-'
+                + project.getVersion() + "-doc.zip");
         projectHelper.attachArtifact(project, "zip", "doc", docZipArchive.toFile());
     }
 
